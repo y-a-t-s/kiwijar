@@ -14,16 +14,29 @@ type KiwiJar struct {
 	cm cookieMap
 }
 
-func (kj *KiwiJar) Cookies(u *url.URL) []*http.Cookie {
-	return kj.cm.cookies(u)
+// Implements the Cookies method of the http.CookieJar interface.
+// Returns empty slice if the URL's scheme is not http or https.
+func (kj *KiwiJar) Cookies(u *url.URL) (cookies []*http.Cookie) {
+	switch u.Scheme {
+	case "http", "https":
+		return kj.cm.cookies(u)
+	default:
+		return
+	}
 }
 
 func (kj *KiwiJar) ParseString(u *url.URL, cookies string) error {
+	switch u.Scheme {
+	case "http", "https":
+	default:
+		return nil
+	}
+
 	if cookies == "" {
 		return nil
 	}
 
-	cs, err := parseCookieString(cookies)
+	cs, err := parseCookieString(u, cookies)
 	if err != nil {
 		return err
 	}
@@ -33,7 +46,7 @@ func (kj *KiwiJar) ParseString(u *url.URL, cookies string) error {
 	return nil
 }
 
-func (kj *KiwiJar) CookieString(u *url.URL) string {
+func (kj *KiwiJar) HeaderString(u *url.URL) string {
 	var b strings.Builder
 
 	cookies := kj.Cookies(u)
@@ -45,28 +58,56 @@ func (kj *KiwiJar) CookieString(u *url.URL) string {
 }
 
 func (kj *KiwiJar) GetCookie(u *url.URL, name string) *http.Cookie {
-	return kj.cm.loadSiteMap(u).getCookie(name)
+	switch u.Scheme {
+	case "http", "https":
+		return kj.cm.loadSiteMap(u).getCookie(name)
+	default:
+		return nil
+	}
 }
 
 func (kj *KiwiJar) SetCookie(u *url.URL, cookie *http.Cookie) {
-	kj.cm.loadSiteMap(u).setCookie(cookie)
+	switch u.Scheme {
+	case "http", "https":
+		kj.cm.loadSiteMap(u).setCookie(cookie)
+	}
 }
 
 func (kj *KiwiJar) SetCookies(u *url.URL, cookies []*http.Cookie) {
-	var wg sync.WaitGroup
+	switch u.Scheme {
+	case "http", "https":
+	default:
+		return
+	}
+
+	var (
+		sm = kj.cm.loadSiteMap(u)
+		wg sync.WaitGroup
+	)
+
 	for _, c := range cookies {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			kj.SetCookie(u, c)
+			sm.setCookie(c)
 		}()
 	}
 	wg.Wait()
 }
 
-func parseCookieString(cookies string) ([]*http.Cookie, error) {
+func parseCookieString(u *url.URL, cookies string) ([]*http.Cookie, error) {
 	sp := strings.Split(cookies, "; ")
 	cs := make([]*http.Cookie, len(sp))
+
+	var (
+		host   = u.Hostname()
+		path   = u.Path
+		secure = u.Scheme == "https"
+	)
+
+	if path == "" {
+		path = "/"
+	}
 
 	for i, c := range sp {
 		kv := strings.Split(c, "=")
@@ -74,8 +115,11 @@ func parseCookieString(cookies string) ([]*http.Cookie, error) {
 			return nil, errors.New("Invalid cookie string: " + cookies)
 		}
 		cs[i] = &http.Cookie{
-			Name:  kv[0],
-			Value: kv[1],
+			Domain: host,
+			Name:   kv[0],
+			Path:   path,
+			Secure: secure,
+			Value:  kv[1],
 		}
 	}
 

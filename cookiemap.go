@@ -19,5 +19,5 @@ func (cm *cookieMap) loadSiteMap(u *url.URL) *siteMap {
 }
 
 func (cm *cookieMap) cookies(u *url.URL) []*http.Cookie {
-	return <-cm.loadSiteMap(u).cookies()
+	return <-cm.loadSiteMap(u).cookies(u)
 }

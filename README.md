@@ -2,6 +2,8 @@
 
 A net/http/cookiejar implementation that doesn't suck ass.
 
+Not 100% standards compliant yet. Caveat emptor.
+
 <hr>
 
 Donations are always appreciated but never expected nor required:

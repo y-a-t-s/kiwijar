@@ -1,7 +1,10 @@
 package kiwijar
 
 import (
+	"fmt"
 	"net/http"
+	"net/url"
+	"slices"
 	"sync"
 )
 
@@ -34,21 +37,19 @@ func (sm *siteMap) setCookie(c *http.Cookie) {
 		sm.mx.Lock()
 		defer sm.mx.Unlock()
 
-		oc := sm.m[c.Name]
-		if oc == nil {
-			sm.m[c.Name] = c
-			return
-		}
-
-		// Overwrite the value instead of the pointer if cookie exists.
-		sm.m[c.Name].Value = c.Value
+		sm.m[c.Name] = c
 	}()
 
 	<-done
 }
 
-func (sm *siteMap) cookies() <-chan []*http.Cookie {
+func (sm *siteMap) cookies(u *url.URL) <-chan []*http.Cookie {
 	out := make(chan []*http.Cookie, 1)
+
+	path := u.Path
+	if path == "" {
+		path = "/"
+	}
 
 	go func() {
 		defer close(out)
@@ -58,10 +59,13 @@ func (sm *siteMap) cookies() <-chan []*http.Cookie {
 
 		cs := make([]*http.Cookie, 0, len(sm.m))
 		for _, c := range sm.m {
-			cs = append(cs, c)
+			if u.Hostname() == c.Domain && path == c.Path && (u.Scheme == "https" || !c.Secure) {
+				fmt.Printf("cookie: %+v\n", c)
+				cs = append(cs, c)
+			}
 		}
 
-		out <- cs
+		out <- slices.Clip(cs)
 	}()
 
 	return out

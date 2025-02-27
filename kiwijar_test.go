@@ -9,7 +9,7 @@ import (
 
 const TEST_HOST = "kiwifarms.net"
 
-func TestKiwiJar(t *testing.T) {
+func TestParseString(t *testing.T) {
 	tc := os.Getenv("TEST_COOKIES")
 
 	u, err := url.Parse("https://" + TEST_HOST)
@@ -23,5 +23,5 @@ func TestKiwiJar(t *testing.T) {
 		t.Error(err)
 	}
 
-	log.Printf("Cookies from jar: %s\n", jar.CookieString(u))
+	log.Printf("Cookies from jar: %s\n", jar.HeaderString(u))
 }
