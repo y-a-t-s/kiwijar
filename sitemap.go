@@ -1,7 +1,6 @@
 package kiwijar
 
 import (
-	"fmt"
 	"net/http"
 	"net/url"
 	"slices"
@@ -60,7 +59,6 @@ func (sm *siteMap) cookies(u *url.URL) <-chan []*http.Cookie {
 		cs := make([]*http.Cookie, 0, len(sm.m))
 		for _, c := range sm.m {
 			if u.Hostname() == c.Domain && path == c.Path && (u.Scheme == "https" || !c.Secure) {
-				fmt.Printf("cookie: %+v\n", c)
 				cs = append(cs, c)
 			}
 		}
